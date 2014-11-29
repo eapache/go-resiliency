@@ -2,20 +2,13 @@ package breaker
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
 
+// BreakerOpen is the error returned from Run() when the function is not executed
+// because the breaker is currently open.
 var BreakerOpen = errors.New("circuit breaker is open")
-
-type Panic struct {
-	Value interface{}
-}
-
-func (p Panic) Error() string {
-	return fmt.Sprint("panic:", p.Value)
-}
 
 type state int
 
@@ -25,6 +18,7 @@ const (
 	halfOpen
 )
 
+// Breaker implements the circuit-breaker resiliency pattern
 type Breaker struct {
 	errorThreshold, successThreshold int
 	timeout                          time.Duration
@@ -34,6 +28,7 @@ type Breaker struct {
 	errors, successes int
 }
 
+// New constructs a new circuit-breaker.
 func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 	return &Breaker{
 		errorThreshold:   errorThreshold,
@@ -42,6 +37,9 @@ func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 	}
 }
 
+// Run will either return BreakerOpen immediately if the circuit-breaker is
+// already open, or it will run the given function and pass along its return
+// value.
 func (b *Breaker) Run(x func() error) error {
 	b.lock.RLock()
 	state := b.state
@@ -51,11 +49,11 @@ func (b *Breaker) Run(x func() error) error {
 		return BreakerOpen
 	}
 
-	result := func() (err error) {
+	var panicValue interface{}
+
+	result := func() error {
 		defer func() {
-			if val := recover(); val != nil {
-				err = Panic{Value: val}
-			}
+			panicValue = recover()
 		}()
 		return x()
 	}()
@@ -63,7 +61,7 @@ func (b *Breaker) Run(x func() error) error {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	if result == nil {
+	if result == nil && panicValue == nil {
 		if b.state == halfOpen {
 			b.successes++
 			if b.successes == b.successThreshold {
@@ -80,6 +78,12 @@ func (b *Breaker) Run(x func() error) error {
 		case halfOpen:
 			b.openBreaker()
 		}
+	}
+
+	if panicValue != nil {
+		// as close as Go lets us come to a "rethrow" although unfortunately
+		// we lose the original panicing location
+		panic(panicValue)
 	}
 
 	return result
