@@ -88,8 +88,7 @@ func (b *Breaker) processResult(result error, panicValue interface{}) {
 		}
 	} else {
 		if b.errors > 0 {
-			expiry := b.lastError //time.Add mutates, so take a copy
-			expiry.Add(b.timeout)
+			expiry := b.lastError.Add(b.timeout)
 			if time.Now().After(expiry) {
 				b.errors = 0
 			}
