@@ -26,9 +26,14 @@ type Breaker struct {
 	lock              sync.RWMutex
 	state             state
 	errors, successes int
+	lastError         time.Time
 }
 
-// New constructs a new circuit-breaker.
+// New constructs a new circuit-breaker that starts closed.
+// From closed, the breaker opens if "errorThreshold" errors are seen
+// without an error-free period of at least "timeout". From open, the
+// breaker half-closes after "timeout". From half-open, the breaker closes
+// after "successThreshold" consecutive successes, or opens on a single error.
 func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 	return &Breaker{
 		errorThreshold:   errorThreshold,
@@ -39,7 +44,7 @@ func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 
 // Run will either return BreakerOpen immediately if the circuit-breaker is
 // already open, or it will run the given function and pass along its return
-// value.
+// value. It is safe to call Run concurrently on the same Breaker.
 func (b *Breaker) Run(x func() error) error {
 	b.lock.RLock()
 	state := b.state
@@ -58,6 +63,18 @@ func (b *Breaker) Run(x func() error) error {
 		return x()
 	}()
 
+	b.processResult(result, panicValue)
+
+	if panicValue != nil {
+		// as close as Go lets us come to a "rethrow" although unfortunately
+		// we lose the original panicing location
+		panic(panicValue)
+	}
+
+	return result
+}
+
+func (b *Breaker) processResult(result error, panicValue interface{}) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -69,24 +86,26 @@ func (b *Breaker) Run(x func() error) error {
 			}
 		}
 	} else {
+		if b.errors > 0 {
+			expiry := b.lastError //time.Add mutates, so take a copy
+			expiry.Add(b.timeout)
+			if time.Now().After(expiry) {
+				b.errors = 0
+			}
+		}
+
 		switch b.state {
 		case closed:
 			b.errors++
 			if b.errors == b.errorThreshold {
 				b.openBreaker()
+			} else {
+				b.lastError = time.Now()
 			}
 		case halfOpen:
 			b.openBreaker()
 		}
 	}
-
-	if panicValue != nil {
-		// as close as Go lets us come to a "rethrow" although unfortunately
-		// we lose the original panicing location
-		panic(panicValue)
-	}
-
-	return result
 }
 
 func (b *Breaker) openBreaker() {
