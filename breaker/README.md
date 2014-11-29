@@ -9,10 +9,10 @@ Creating a breaker takes three parameters:
 - timeout (how long to keep the breaker open)
 
 ```go
-breaker := breaker.New(3, 1, 5*time.Second)
+b := breaker.New(3, 1, 5*time.Second)
 
 for {
-	result := breaker.Run(func() error {
+	result := b.Run(func() error {
 		// communicate with some external service and
 		// return an error if the communication failed
 		return nil
@@ -21,7 +21,7 @@ for {
 	switch result {
 	case nil:
 		// success!
-	case BreakerOpen:
+	case breaker.BreakerOpen:
 		// our function wasn't run because the breaker was open
 	default:
 		// some other error
