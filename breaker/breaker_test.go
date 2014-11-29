@@ -76,3 +76,24 @@ func TestBreakerStateTransitions(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func ExampleBreaker() {
+	breaker := New(3, 1, 5*time.Second)
+
+	for {
+		result := breaker.Run(func() error {
+			// communicate with some external service and
+			// return an error if the communication failed
+			return nil
+		})
+
+		switch result {
+		case nil:
+			// success!
+		case BreakerOpen:
+			// our function wasn't run because the breaker was open
+		default:
+			// some other error
+		}
+	}
+}
