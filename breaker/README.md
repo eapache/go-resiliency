@@ -8,7 +8,7 @@ Creating a breaker takes three parameters:
 - success threshold (for closing the breaker)
 - timeout (how long to keep the breaker open)
 
-```golang
+```go
 breaker := breaker.New(3, 1, 5*time.Second)
 
 for {
