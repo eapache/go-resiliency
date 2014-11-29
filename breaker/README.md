@@ -21,7 +21,7 @@ for {
 	switch result {
 	case nil:
 		// success!
-	case breaker.BreakerOpen:
+	case breaker.ErrBreakerOpen:
 		// our function wasn't run because the breaker was open
 	default:
 		// some other error

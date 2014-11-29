@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// BreakerOpen is the error returned from Run() when the function is not executed
+// ErrBreakerOpen is the error returned from Run() when the function is not executed
 // because the breaker is currently open.
-var BreakerOpen = errors.New("circuit breaker is open")
+var ErrBreakerOpen = errors.New("circuit breaker is open")
 
 type state int
 
@@ -43,7 +43,7 @@ func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 	}
 }
 
-// Run will either return BreakerOpen immediately if the circuit-breaker is
+// Run will either return ErrBreakerOpen immediately if the circuit-breaker is
 // already open, or it will run the given function and pass along its return
 // value. It is safe to call Run concurrently on the same Breaker.
 func (b *Breaker) Run(x func() error) error {
@@ -52,7 +52,7 @@ func (b *Breaker) Run(x func() error) error {
 	b.lock.RUnlock()
 
 	if state == open {
-		return BreakerOpen
+		return ErrBreakerOpen
 	}
 
 	var panicValue interface{}

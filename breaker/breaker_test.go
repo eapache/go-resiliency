@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-var someError = errors.New("someError")
+var errSomeError = errors.New("errSomeError")
 
 func returnsError() error {
-	return someError
+	return errSomeError
 }
 
 func returnsSuccess() error {
@@ -20,7 +20,7 @@ func TestBreakerErrorExpiry(t *testing.T) {
 	breaker := New(2, 1, 1*time.Second)
 
 	for i := 0; i < 5; i++ {
-		if err := breaker.Run(returnsError); err != someError {
+		if err := breaker.Run(returnsError); err != errSomeError {
 			t.Error(err)
 		}
 		time.Sleep(1 * time.Second)
@@ -32,14 +32,14 @@ func TestBreakerStateTransitions(t *testing.T) {
 
 	// three errors opens the breaker
 	for i := 0; i < 3; i++ {
-		if err := breaker.Run(returnsError); err != someError {
+		if err := breaker.Run(returnsError); err != errSomeError {
 			t.Error(err)
 		}
 	}
 
 	// breaker is open
 	for i := 0; i < 5; i++ {
-		if err := breaker.Run(returnsError); err != BreakerOpen {
+		if err := breaker.Run(returnsError); err != ErrBreakerOpen {
 			t.Error(err)
 		}
 	}
@@ -51,11 +51,11 @@ func TestBreakerStateTransitions(t *testing.T) {
 		t.Error(err)
 	}
 	// error works, but re-opens immediately
-	if err := breaker.Run(returnsError); err != someError {
+	if err := breaker.Run(returnsError); err != errSomeError {
 		t.Error(err)
 	}
 	// breaker is open
-	if err := breaker.Run(returnsError); err != BreakerOpen {
+	if err := breaker.Run(returnsError); err != ErrBreakerOpen {
 		t.Error(err)
 	}
 
@@ -68,7 +68,7 @@ func TestBreakerStateTransitions(t *testing.T) {
 		}
 	}
 	// error works
-	if err := breaker.Run(returnsError); err != someError {
+	if err := breaker.Run(returnsError); err != errSomeError {
 		t.Error(err)
 	}
 	// breaker is still closed
@@ -90,7 +90,7 @@ func ExampleBreaker() {
 		switch result {
 		case nil:
 			// success!
-		case BreakerOpen:
+		case ErrBreakerOpen:
 			// our function wasn't run because the breaker was open
 		default:
 			// some other error
