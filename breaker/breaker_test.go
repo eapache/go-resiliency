@@ -19,8 +19,15 @@ func returnsSuccess() error {
 func TestBreakerErrorExpiry(t *testing.T) {
 	breaker := New(2, 1, 1*time.Second)
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 3; i++ {
 		if err := breaker.Run(returnsError); err != errSomeError {
+			t.Error(err)
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	for i := 0; i < 3; i++ {
+		if err := breaker.Go(returnsError); err != nil {
 			t.Error(err)
 		}
 		time.Sleep(1 * time.Second)
@@ -73,6 +80,65 @@ func TestBreakerStateTransitions(t *testing.T) {
 	}
 	// breaker is still closed
 	if err := breaker.Run(returnsSuccess); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBreakerAsyncStateTransitions(t *testing.T) {
+	breaker := New(3, 2, 1*time.Second)
+
+	// three errors opens the breaker
+	for i := 0; i < 3; i++ {
+		if err := breaker.Go(returnsError); err != nil {
+			t.Error(err)
+		}
+	}
+
+	// just enough to yield the scheduler and let the goroutines work off
+	time.Sleep(1 * time.Millisecond)
+
+	// breaker is open
+	for i := 0; i < 5; i++ {
+		if err := breaker.Go(returnsError); err != ErrBreakerOpen {
+			t.Error(err)
+		}
+	}
+
+	// wait for it to half-close
+	time.Sleep(2 * time.Second)
+	// one success works, but is not enough to fully close
+	if err := breaker.Go(returnsSuccess); err != nil {
+		t.Error(err)
+	}
+	// error works, but re-opens immediately
+	if err := breaker.Go(returnsError); err != nil {
+		t.Error(err)
+	}
+	// just enough to yield the scheduler and let the goroutines work off
+	time.Sleep(1 * time.Millisecond)
+	// breaker is open
+	if err := breaker.Go(returnsError); err != ErrBreakerOpen {
+		t.Error(err)
+	}
+
+	// wait for it to half-close
+	time.Sleep(2 * time.Second)
+	// two successes is enough to close it for good
+	for i := 0; i < 2; i++ {
+		if err := breaker.Go(returnsSuccess); err != nil {
+			t.Error(err)
+		}
+	}
+	// just enough to yield the scheduler and let the goroutines work off
+	time.Sleep(1 * time.Millisecond)
+	// error works
+	if err := breaker.Go(returnsError); err != nil {
+		t.Error(err)
+	}
+	// just enough to yield the scheduler and let the goroutines work off
+	time.Sleep(1 * time.Millisecond)
+	// breaker is still closed
+	if err := breaker.Go(returnsSuccess); err != nil {
 		t.Error(err)
 	}
 }

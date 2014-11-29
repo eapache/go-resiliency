@@ -81,6 +81,48 @@ func (b *Breaker) Run(x func() error) error {
 	return result
 }
 
+// Go will either return ErrBreakerOpen immediately if the circuit-breaker is
+// already open, or it will run the given function in a separate goroutine.
+// If the function is run, Go will return nil immediately, and will *not* return
+// the return value of the function. It is safe to call Go concurrently on the
+// same Breaker.
+func (b *Breaker) Go(x func() error) error {
+	b.lock.RLock()
+	state := b.state
+	b.lock.RUnlock()
+
+	if state == open {
+		return ErrBreakerOpen
+	}
+
+	go func() {
+		var panicValue interface{}
+
+		result := func() error {
+			defer func() {
+				panicValue = recover()
+			}()
+			return x()
+		}()
+
+		if result == nil && panicValue == nil && state == closed {
+			// short-circuit the normal, success path without
+			// contending on the lock
+			return
+		}
+
+		b.processResult(result, panicValue)
+
+		if panicValue != nil {
+			// as close as Go lets us come to a "rethrow" although
+			// unfortunately we lose the original panicing location
+			panic(panicValue)
+		}
+	}()
+
+	return nil
+}
+
 func (b *Breaker) processResult(result error, panicValue interface{}) {
 	b.lock.Lock()
 	defer b.lock.Unlock()
