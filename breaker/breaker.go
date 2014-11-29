@@ -64,6 +64,12 @@ func (b *Breaker) Run(x func() error) error {
 		return x()
 	}()
 
+	if result == nil && panicValue == nil && state == closed {
+		// short-circuit the normal, success path without contending
+		// on the lock
+		return nil
+	}
+
 	b.processResult(result, panicValue)
 
 	if panicValue != nil {
