@@ -1,3 +1,4 @@
+// Package breaker implements the circuit-breaker resiliency pattern for Go.
 package breaker
 
 import (
