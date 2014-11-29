@@ -1,6 +1,8 @@
 circuit-breaker
 ===============
 
+[![GoDoc](https://godoc.org/github.com/eapache/go-resiliency/breaker?status.svg)](https://godoc.org/github.com/eapache/go-resiliency/breaker)
+
 The circuit-breaker resiliency pattern for golang.
 
 Creating a breaker takes three parameters:

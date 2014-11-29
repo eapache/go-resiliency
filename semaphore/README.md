@@ -1,6 +1,8 @@
 semaphore
 =========
 
+[![GoDoc](https://godoc.org/github.com/eapache/go-resiliency/semaphore?status.svg)](https://godoc.org/github.com/eapache/go-resiliency/semaphore)
+
 The semaphore resiliency pattern for golang.
 
 Creating a semaphore takes two parameters:
