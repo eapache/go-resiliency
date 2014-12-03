@@ -46,7 +46,7 @@ func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 // Run will either return ErrBreakerOpen immediately if the circuit-breaker is
 // already open, or it will run the given function and pass along its return
 // value. It is safe to call Run concurrently on the same Breaker.
-func (b *Breaker) Run(x func() error) error {
+func (b *Breaker) Run(work func() error) error {
 	b.lock.RLock()
 	state := b.state
 	b.lock.RUnlock()
@@ -61,7 +61,7 @@ func (b *Breaker) Run(x func() error) error {
 		defer func() {
 			panicValue = recover()
 		}()
-		return x()
+		return work()
 	}()
 
 	if result == nil && panicValue == nil && state == closed {
@@ -86,7 +86,7 @@ func (b *Breaker) Run(x func() error) error {
 // If the function is run, Go will return nil immediately, and will *not* return
 // the return value of the function. It is safe to call Go concurrently on the
 // same Breaker.
-func (b *Breaker) Go(x func() error) error {
+func (b *Breaker) Go(work func() error) error {
 	b.lock.RLock()
 	state := b.state
 	b.lock.RUnlock()
@@ -102,7 +102,7 @@ func (b *Breaker) Go(x func() error) error {
 			defer func() {
 				panicValue = recover()
 			}()
-			return x()
+			return work()
 		}()
 
 		if result == nil && panicValue == nil && state == closed {
