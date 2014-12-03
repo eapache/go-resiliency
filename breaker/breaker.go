@@ -55,30 +55,7 @@ func (b *Breaker) Run(work func() error) error {
 		return ErrBreakerOpen
 	}
 
-	var panicValue interface{}
-
-	result := func() error {
-		defer func() {
-			panicValue = recover()
-		}()
-		return work()
-	}()
-
-	if result == nil && panicValue == nil && state == closed {
-		// short-circuit the normal, success path without contending
-		// on the lock
-		return nil
-	}
-
-	b.processResult(result, panicValue)
-
-	if panicValue != nil {
-		// as close as Go lets us come to a "rethrow" although unfortunately
-		// we lose the original panicing location
-		panic(panicValue)
-	}
-
-	return result
+	return b.doWork(state, work)
 }
 
 // Go will either return ErrBreakerOpen immediately if the circuit-breaker is
@@ -95,32 +72,40 @@ func (b *Breaker) Go(work func() error) error {
 		return ErrBreakerOpen
 	}
 
-	go func() {
-		var panicValue interface{}
-
-		result := func() error {
-			defer func() {
-				panicValue = recover()
-			}()
-			return work()
-		}()
-
-		if result == nil && panicValue == nil && state == closed {
-			// short-circuit the normal, success path without
-			// contending on the lock
-			return
-		}
-
-		b.processResult(result, panicValue)
-
-		if panicValue != nil {
-			// as close as Go lets us come to a "rethrow" although
-			// unfortunately we lose the original panicing location
-			panic(panicValue)
-		}
-	}()
+	// errcheck complains about ignoring the error return value, but
+	// that's on purpose; if you want an error from a goroutine you have to
+	// get it over a channel or something
+	go b.doWork(state, work)
 
 	return nil
+}
+
+func (b *Breaker) doWork(state state, work func() error) error {
+	var panicValue interface{}
+
+	result := func() error {
+		defer func() {
+			panicValue = recover()
+		}()
+		return work()
+	}()
+
+	if result == nil && panicValue == nil && state == closed {
+		// short-circuit the normal, success path without contending
+		// on the lock
+		return nil
+	}
+
+	// oh well, I guess we have to contend on the lock
+	b.processResult(result, panicValue)
+
+	if panicValue != nil {
+		// as close as Go lets us come to a "rethrow" although unfortunately
+		// we lose the original panicing location
+		panic(panicValue)
+	}
+
+	return result
 }
 
 func (b *Breaker) processResult(result error, panicValue interface{}) {
