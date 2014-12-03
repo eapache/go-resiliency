@@ -8,6 +8,10 @@ import (
 
 var errSomeError = errors.New("errSomeError")
 
+func alwaysPanics() error {
+	panic("foo")
+}
+
 func returnsError() error {
 	return errSomeError
 }
@@ -31,6 +35,33 @@ func TestBreakerErrorExpiry(t *testing.T) {
 			t.Error(err)
 		}
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func TestBreakerPanicsCountAsErrors(t *testing.T) {
+	breaker := New(3, 2, 1*time.Second)
+
+	// three errors opens the breaker
+	for i := 0; i < 3; i++ {
+		func() {
+			defer func() {
+				val := recover()
+				if val.(string) != "foo" {
+					t.Error("incorrect panic")
+				}
+			}()
+			if err := breaker.Run(alwaysPanics); err != nil {
+				t.Error(err)
+			}
+			t.Error("shouldn't get here")
+		}()
+	}
+
+	// breaker is open
+	for i := 0; i < 5; i++ {
+		if err := breaker.Run(returnsError); err != ErrBreakerOpen {
+			t.Error(err)
+		}
 	}
 }
 
