@@ -18,7 +18,7 @@ err := dl.Run(func(stopper <-chan struct{}) error {
 })
 
 switch err {
-case ErrTimedOut:
+case deadline.ErrTimedOut:
 	// execution took too long, oops
 default:
 	// some other error
