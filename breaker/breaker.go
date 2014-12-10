@@ -4,6 +4,7 @@ package breaker
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -11,10 +12,8 @@ import (
 // because the breaker is currently open.
 var ErrBreakerOpen = errors.New("circuit breaker is open")
 
-type state int
-
 const (
-	closed state = iota
+	closed uint32 = iota
 	open
 	halfOpen
 )
@@ -24,8 +23,8 @@ type Breaker struct {
 	errorThreshold, successThreshold int
 	timeout                          time.Duration
 
-	lock              sync.RWMutex
-	state             state
+	lock              sync.Mutex
+	state             uint32
 	errors, successes int
 	lastError         time.Time
 }
@@ -47,9 +46,7 @@ func New(errorThreshold, successThreshold int, timeout time.Duration) *Breaker {
 // already open, or it will run the given function and pass along its return
 // value. It is safe to call Run concurrently on the same Breaker.
 func (b *Breaker) Run(work func() error) error {
-	b.lock.RLock()
-	state := b.state
-	b.lock.RUnlock()
+	state := atomic.LoadUint32(&b.state)
 
 	if state == open {
 		return ErrBreakerOpen
@@ -64,9 +61,7 @@ func (b *Breaker) Run(work func() error) error {
 // the return value of the function. It is safe to call Go concurrently on the
 // same Breaker.
 func (b *Breaker) Go(work func() error) error {
-	b.lock.RLock()
-	state := b.state
-	b.lock.RUnlock()
+	state := atomic.LoadUint32(&b.state)
 
 	if state == open {
 		return ErrBreakerOpen
@@ -80,7 +75,7 @@ func (b *Breaker) Go(work func() error) error {
 	return nil
 }
 
-func (b *Breaker) doWork(state state, work func() error) error {
+func (b *Breaker) doWork(state uint32, work func() error) error {
 	var panicValue interface{}
 
 	result := func() error {
@@ -159,8 +154,8 @@ func (b *Breaker) timer() {
 	b.changeState(halfOpen)
 }
 
-func (b *Breaker) changeState(newState state) {
+func (b *Breaker) changeState(newState uint32) {
 	b.errors = 0
 	b.successes = 0
-	b.state = newState
+	atomic.StoreUint32(&b.state, newState)
 }
