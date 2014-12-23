@@ -74,6 +74,47 @@ func TestRetrierNone(t *testing.T) {
 	}
 }
 
+func TestRetrierJitter(t *testing.T) {
+	r := New([]time.Duration{0, 10 * time.Millisecond, 4 * time.Hour}, nil)
+
+	if r.calcSleep(0) != 0 {
+		t.Error("Incorrect sleep calculated")
+	}
+	if r.calcSleep(1) != 10*time.Millisecond {
+		t.Error("Incorrect sleep calculated")
+	}
+	if r.calcSleep(2) != 4*time.Hour {
+		t.Error("Incorrect sleep calculated")
+	}
+
+	r.SetJitter(0.25)
+	for i := 0; i < 20; i++ {
+		if r.calcSleep(0) != 0 {
+			t.Error("Incorrect sleep calculated")
+		}
+
+		slp := r.calcSleep(1)
+		if slp < 7500*time.Microsecond || slp > 12500*time.Microsecond {
+			t.Error("Incorrect sleep calculated")
+		}
+
+		slp = r.calcSleep(2)
+		if slp < 3*time.Hour || slp > 5*time.Hour {
+			t.Error("Incorrect sleep calculated")
+		}
+	}
+
+	r.SetJitter(-1)
+	if r.jitter != 0.25 {
+		t.Error("Invalid jitter value accepted")
+	}
+
+	r.SetJitter(2)
+	if r.jitter != 0.25 {
+		t.Error("Invalid jitter value accepted")
+	}
+}
+
 func ExampleRetrier() {
 	r := New(ConstantBackoff(3, 100*time.Millisecond), nil)
 
