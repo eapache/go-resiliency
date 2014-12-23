@@ -1,13 +1,18 @@
 // Package retrier implements the "retriable" resiliency pattern for Go.
 package retrier
 
-import "time"
+import (
+	"math/rand"
+	"time"
+)
 
 // Retrier implements the "retriable" resiliency pattern, abstracting out the process of retrying a failed action
 // a certain number of times with an optional back-off between each retry.
 type Retrier struct {
 	backoff []time.Duration
 	class   Classifier
+	jitter  float64
+	rand    *rand.Rand
 }
 
 // New constructs a Retrier with the given backoff pattern and classifier. The length of the backoff pattern
@@ -22,6 +27,7 @@ func New(backoff []time.Duration, class Classifier) *Retrier {
 	return &Retrier{
 		backoff: backoff,
 		class:   class,
+		rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
@@ -42,8 +48,22 @@ func (r *Retrier) Run(work func() error) error {
 			if retries >= len(r.backoff) {
 				return ret
 			}
-			time.Sleep(r.backoff[retries])
+			time.Sleep(r.calcSleep(retries))
 			retries++
 		}
 	}
+}
+
+func (r *Retrier) calcSleep(i int) time.Duration {
+	// take a random float in the range (-r.jitter, +r.jitter) and multiply it by the base amount
+	return r.backoff[i] + time.Duration(((r.rand.Float64()*2)-1)*r.jitter*float64(r.backoff[i]))
+}
+
+// SetJitter sets the amount of jitter on each back-off to a factor between 0.0 and 1.0 (values outside this range
+// are silently ignored). When a retry occurs, the back-off is adjusted by a random amount up to this value.
+func (r *Retrier) SetJitter(jit float64) {
+	if jit < 0 || jit > 1 {
+		return
+	}
+	r.jitter = jit
 }
