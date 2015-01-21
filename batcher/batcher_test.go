@@ -32,6 +32,13 @@ func TestBatcherSuccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+
+	b = New(0, returnsSuccess)
+	for i := 0; i < 10; i++ {
+		if err := b.Run(nil); err != nil {
+			t.Error(err)
+		}
+	}
 }
 
 func TestBatcherError(t *testing.T) {
