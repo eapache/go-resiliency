@@ -22,7 +22,9 @@ type Batcher struct {
 }
 
 // New constructs a new batcher that will batch all calls to Run that occur within
-// `timeout` time before calling doWork just once for the entire batch.
+// `timeout` time before calling doWork just once for the entire batch. The doWork
+// function must be safe to run concurrently with itself as this may occur, especially
+// when the timeout is small.
 func New(timeout time.Duration, doWork func([]interface{}) error) *Batcher {
 	return &Batcher{
 		timeout: timeout,
@@ -38,6 +40,10 @@ func (b *Batcher) Run(param interface{}) error {
 		if err := b.prefilter(param); err != nil {
 			return err
 		}
+	}
+
+	if b.timeout == 0 {
+		return b.doWork([]interface{}{param})
 	}
 
 	w := &work{
