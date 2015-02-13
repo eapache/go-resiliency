@@ -14,3 +14,7 @@ Currently implemented patterns include:
 - deadline/timeout (in the `deadline` directory)
 - batching (in the `batcher` directory)
 - retriable (in the `retrier` directory)
+
+Follows semantic versioning using https://gopkg.in/ - import from
+[`gopkg.in/eapache/go-resiliency.v1`](https://gopkg.in/eapache/go-resiliency.v1)
+for guaranteed API stability.
