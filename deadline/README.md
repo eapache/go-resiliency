@@ -13,8 +13,8 @@ Creating a deadline takes one parameter: how long to wait.
 dl := deadline.New(1 * time.Second)
 
 err := dl.Run(func(stopper <-chan struct{}) error {
-	// do something possibly slow
-	// check stopper function and give up if timed out
+	// do something potentially slow
+	// give up when the `stopper` channel is closed (indicating a time-out)
 	return nil
 })
 
