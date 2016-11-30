@@ -7,7 +7,8 @@ import (
 
 func TestLimiter(t *testing.T) {
 
-	rl := New(5, 2.0)
+	leaky := New(5, 2.0)
+	defer leaky.Close()
 
 	var expectedCount = 7
 
@@ -17,22 +18,19 @@ func TestLimiter(t *testing.T) {
 	// goroutines to be rate limited
 	go func() {
 		for {
-			<-rl
+			<-leaky.Limiter()
 			count++
 		}
 	}()
 
 	go func() {
 		for {
-			<-rl
+			<-leaky.Limiter()
 			count++
 		}
 	}()
 
 	<-quit
-
-	// IMPORTANT: must set channel to be nil when finished
-	rl = nil
 
 	if count != expectedCount {
 		t.Error("Rate limt was not at expected count", expectedCount, ", actual count was", count)

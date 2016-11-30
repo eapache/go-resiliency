@@ -2,34 +2,51 @@ package limiter
 
 import "time"
 
-type leakyBucket chan struct{}
+type LeakyBucket struct {
+	bucket chan struct{}
+	quit   chan struct{}
+}
 
-func (rl leakyBucket) fill(burst int) {
+func (rl *LeakyBucket) fill(burst int) {
 	for i := 0; i < burst; i++ {
-		rl <- struct{}{}
+		rl.bucket <- struct{}{}
 	}
 }
 
-func (rl leakyBucket) drip(drip float64) {
+func (rl *LeakyBucket) drip(drip float64) {
 	driptime := float64(1000000000) / drip
 	for {
 		time.Sleep(time.Duration(driptime) * time.Nanosecond)
 		// close
-		if rl == nil {
+		select {
+		case rl.bucket <- struct{}{}:
+		case <-rl.quit:
 			return
+		default:
+			continue
 		}
-		rl <- struct{}{}
 	}
 }
 
-// New returns a read-only signal channel that will send signals accoding to a
-// leaky bucket implementation. The limiter . The constructor takes two argements;
-// burst is the initial burst of calls allowed by the limiter, drip is the drip
-// rate per sec. IMPORTANT! must set the returned channel to nil when finished with it,
-// as this stops dripping background process.
-func New(burst int, drip float64) <-chan struct{} {
+// Close MUST be called by client when leaky bucket is not requited. Otherise will leak a goroutine.
+func (rl *LeakyBucket) Close() {
+	rl.quit <- struct{}{}
+}
 
-	rl := leakyBucket(make(chan struct{}, burst))
+// Limiter returns a read-only channel signal that will send signals according to a leaky buckety alogrithm.
+func (rl *LeakyBucket) Limiter() <-chan struct{} {
+	return rl.bucket
+}
+
+// New returns an instance of LeakyBucket. The limiter . The constructor takes two argements;
+// burst is the initial burst of calls allowed by the limiter, drip is the drip
+// rate per sec.
+func New(burst int, drip float64) *LeakyBucket {
+
+	rl := &LeakyBucket{
+		bucket: make(chan struct{}, burst),
+		quit:   make(chan struct{}),
+	}
 
 	rl.fill(burst)
 	go rl.drip(drip)
