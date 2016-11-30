@@ -8,6 +8,7 @@ import (
 func TestLimiter(t *testing.T) {
 
 	rl := New(5, 2.0)
+
 	var expectedCount = 7
 
 	var count int
@@ -29,6 +30,9 @@ func TestLimiter(t *testing.T) {
 	}()
 
 	<-quit
+
+	// IMPORTANT: must set channel to be nil when finished
+	rl = nil
 
 	if count != expectedCount {
 		t.Error("Rate limt was not at expected count", expectedCount, ", actual count was", count)
