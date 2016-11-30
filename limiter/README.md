@@ -13,7 +13,7 @@ Creating a leaky bucket takes two parameters:
 
 ```go
 // returned limiter is safe to use in multiple go routines
-leaky := limiter.New(100, 1) // allows for 100 initial calls, then subsequent calls of 1 per second
+leaky := limiter.New(100, 1.0) // allows for 100 initial calls, then subsequent calls of 1 per second
 
 
 // goroutines of some worker process
