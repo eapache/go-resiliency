@@ -23,5 +23,4 @@ go func() {
     // do something that needs to be rate limited
   }
 }()
-}
 ```
