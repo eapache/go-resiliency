@@ -43,3 +43,8 @@ func (s *Semaphore) Acquire() error {
 func (s *Semaphore) Release() {
 	<-s.sem
 }
+
+// IsEmpty would return true if none acquired ar that moment of time, otherwise false.
+func (s *Semaphore) IsEmpty() bool {
+	return len(s.sem) == 0
+}
