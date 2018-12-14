@@ -1,6 +1,7 @@
 package retrier
 
 import (
+	"errors"
 	"testing"
 	"time"
 )
@@ -112,6 +113,17 @@ func TestRetrierJitter(t *testing.T) {
 	r.SetJitter(2)
 	if r.jitter != 0.25 {
 		t.Error("Invalid jitter value accepted")
+	}
+}
+
+func TestRetrierThreadSafety(t *testing.T) {
+	r := New([]time.Duration{0}, nil)
+	for i := 0; i < 2; i++ {
+		go func() {
+			r.Run(func() error {
+				return errors.New("error")
+			})
+		}()
 	}
 }
 

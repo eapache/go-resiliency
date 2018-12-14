@@ -3,6 +3,7 @@ package retrier
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type Retrier struct {
 	class   Classifier
 	jitter  float64
 	rand    *rand.Rand
+	randMu  sync.Mutex
 }
 
 // New constructs a Retrier with the given backoff pattern and classifier. The length of the backoff pattern
@@ -55,6 +57,9 @@ func (r *Retrier) Run(work func() error) error {
 }
 
 func (r *Retrier) calcSleep(i int) time.Duration {
+	// lock unsafe rand prng
+	r.randMu.Lock()
+	defer r.randMu.Unlock()
 	// take a random float in the range (-r.jitter, +r.jitter) and multiply it by the base amount
 	return r.backoff[i] + time.Duration(((r.rand.Float64()*2)-1)*r.jitter*float64(r.backoff[i]))
 }
