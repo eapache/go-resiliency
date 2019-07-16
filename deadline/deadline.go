@@ -32,7 +32,11 @@ func (d *Deadline) Run(work func(<-chan struct{}) error) error {
 	stopper := make(chan struct{})
 
 	go func() {
-		result <- work(stopper)
+		value := work(stopper)
+		select {
+		case result <- value:
+		case <-stopper:
+		}
 	}()
 
 	select {
