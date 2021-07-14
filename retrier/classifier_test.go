@@ -29,6 +29,18 @@ func TestDefaultClassifier(t *testing.T) {
 	}
 }
 
+type wrappedErr struct {
+	error
+}
+
+func (w wrappedErr) Error() string {
+	return "there's an error happening during X: " + w.Error()
+}
+
+func (w wrappedErr) Unwrap() error {
+	return w.error
+}
+
 func TestWhitelistClassifier(t *testing.T) {
 	c := WhitelistClassifier{errFoo, errBar}
 
@@ -43,6 +55,16 @@ func TestWhitelistClassifier(t *testing.T) {
 		t.Error("whitelist misclassified bar")
 	}
 	if c.Classify(errBaz) != Fail {
+		t.Error("whitelist misclassified baz")
+	}
+
+	if c.Classify(wrappedErr{error: errFoo}) != Retry {
+		t.Error("whitelist misclassified foo")
+	}
+	if c.Classify(wrappedErr{error: errBar}) != Retry {
+		t.Error("whitelist misclassified bar")
+	}
+	if c.Classify(wrappedErr{error: errBaz}) != Fail {
 		t.Error("whitelist misclassified baz")
 	}
 }
@@ -61,6 +83,16 @@ func TestBlacklistClassifier(t *testing.T) {
 		t.Error("blacklist misclassified bar")
 	}
 	if c.Classify(errBaz) != Retry {
+		t.Error("blacklist misclassified baz")
+	}
+
+	if c.Classify(wrappedErr{error: errFoo}) != Retry {
+		t.Error("blacklist misclassified foo")
+	}
+	if c.Classify(wrappedErr{error: errBar}) != Fail {
+		t.Error("blacklist misclassified bar")
+	}
+	if c.Classify(wrappedErr{error: errBaz}) != Retry {
 		t.Error("blacklist misclassified baz")
 	}
 }
