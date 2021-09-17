@@ -53,3 +53,33 @@ func TestExponentialBackoff(t *testing.T) {
 		t.Error("incorrect value")
 	}
 }
+
+func TestLimitedExponentialBackoff(t *testing.T) {
+	b := LimitedExponentialBackoff(1, 10*time.Millisecond, 11*time.Millisecond)
+	if len(b) != 1 {
+		t.Error("incorrect length")
+	}
+	if b[0] != 10*time.Millisecond {
+		t.Error("incorrect value")
+	}
+
+	b = LimitedExponentialBackoff(5, 1*time.Minute, 4*time.Minute)
+	if len(b) != 5 {
+		t.Error("incorrect length")
+	}
+	if b[0] != 1*time.Minute {
+		t.Error("incorrect value")
+	}
+	if b[1] != 2*time.Minute {
+		t.Error("incorrect value")
+	}
+	if b[2] != 4*time.Minute {
+		t.Error("incorrect value")
+	}
+	if b[3] != 4*time.Minute {
+		t.Error("incorrect value")
+	}
+	if b[4] != 4*time.Minute {
+		t.Error("incorrect value")
+	}
+}
