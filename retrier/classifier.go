@@ -1,5 +1,7 @@
 package retrier
 
+import "errors"
+
 // Action is the type returned by a Classifier to indicate how the Retrier should proceed.
 type Action int
 
@@ -38,7 +40,7 @@ func (list WhitelistClassifier) Classify(err error) Action {
 	}
 
 	for _, pass := range list {
-		if err == pass {
+		if errors.Is(err, pass) {
 			return Retry
 		}
 	}
@@ -57,7 +59,7 @@ func (list BlacklistClassifier) Classify(err error) Action {
 	}
 
 	for _, pass := range list {
-		if err == pass {
+		if errors.Is(err, pass) {
 			return Fail
 		}
 	}
