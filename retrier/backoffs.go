@@ -22,3 +22,20 @@ func ExponentialBackoff(n int, initialAmount time.Duration) []time.Duration {
 	}
 	return ret
 }
+
+// LimitedExponentialBackoff generates a simple back-off strategy of retrying 'n' times, and doubling the amount of
+// time waited after each one.
+// If back-off reaches `limitAmount` , thereafter back-off will be filled with `limitAmount` .
+func LimitedExponentialBackoff(n int, initialAmount time.Duration, limitAmount time.Duration) []time.Duration {
+	ret := make([]time.Duration, n)
+	next := initialAmount
+	for i := range ret {
+		if next < limitAmount {
+			ret[i] = next
+			next *= 2
+		} else {
+			ret[i] = limitAmount
+		}
+	}
+	return ret
+}
