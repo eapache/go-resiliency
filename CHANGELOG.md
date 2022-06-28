@@ -1,5 +1,10 @@
 # Changelog
 
+#### Unreleased
+
+ - Fix a goroutine leak in `Deadline.Run()` on `ErrTimeOut`.
+ - Add a `go.mod` file to conform to more recent Golang version standards.
+
 #### Version 1.2.0 (2019-06-14)
 
 *Note: This release requires Golang at least 1.7, which is higher than the
