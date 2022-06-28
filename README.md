@@ -16,6 +16,7 @@ Currently implemented patterns include:
 - batching (in the `batcher` directory)
 - retriable (in the `retrier` directory)
 
-Follows semantic versioning using https://gopkg.in/ - import from
-[`gopkg.in/eapache/go-resiliency.v1`](https://gopkg.in/eapache/go-resiliency.v1)
-for guaranteed API stability.
+*Note: I will occasionally bump the minimum required Golang version without
+bumping the major version of this package, which violates the official Golang
+packaging convention around breaking changes. Typically the versions being
+dropped are multiple years old and long unsupported.*
