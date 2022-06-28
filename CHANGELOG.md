@@ -12,6 +12,8 @@ dropped are multiple years old and long unsupported.*
  - Add a `go.mod` file to conform to more recent Golang version standards.
  - Use `errors.Is` when classifying errors for the `Retrier` (thanks to Taufik
    Rama).
+ - Add implementation of `LimitedExponentialBackoff` for the `Retrier` (thanks
+   to tukeJonny).
 
 #### Version 1.2.0 (2019-06-14)
 
