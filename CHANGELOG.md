@@ -5,7 +5,7 @@ bumping the major version of this package, which violates the official Golang
 packaging convention around breaking changes. Typically the versions being
 dropped are multiple years old and long unsupported.*
 
-#### Unreleased
+#### Version 1.3.0 (2022-06-27)
 
  - Increased minimum Golang version to 1.13.
  - Fix a goroutine leak in `Deadline.Run()` on `ErrTimeOut`.
