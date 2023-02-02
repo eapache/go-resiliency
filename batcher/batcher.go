@@ -71,7 +71,7 @@ func (b *Batcher) submitWork(w *work) {
 	defer b.lock.Unlock()
 
 	if b.submit == nil {
-		b.done = make(chan bool, 1)
+		b.done = make(chan bool)
 		b.submit = make(chan *work, 4)
 		go b.batch()
 	}
@@ -98,6 +98,7 @@ func (b *Batcher) batch() {
 		close(future)
 	}
 	b.done <- true
+	close(b.done)
 }
 
 func (b *Batcher) timer() {
