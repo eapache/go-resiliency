@@ -16,11 +16,9 @@ type Batcher struct {
 	timeout   time.Duration
 	prefilter func(interface{}) error
 
-	lock              sync.Mutex
-	submit            chan *work
-	doWork            func([]interface{}) error
-	workCount         int
-	callbackWorkAdded func(count int)
+	lock   sync.Mutex
+	submit chan *work
+	doWork func([]interface{}) error
 }
 
 // New constructs a new batcher that will batch all calls to Run that occur within
@@ -77,11 +75,6 @@ func (b *Batcher) submitWork(w *work) {
 	}
 
 	b.submit <- w
-	b.workCount++
-	if b.callbackWorkAdded != nil {
-		go b.callbackWorkAdded(b.workCount)
-	}
-
 }
 
 func (b *Batcher) batch() {
@@ -122,5 +115,4 @@ func (b *Batcher) Flush() {
 
 	close(b.submit)
 	b.submit = nil
-	b.workCount = 0
 }

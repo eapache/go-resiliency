@@ -42,7 +42,8 @@ func TestBatcherSuccess(t *testing.T) {
 }
 
 func TestFlushSuccess(t *testing.T) {
-	durationLimit := 10 * time.Millisecond
+	sleepDuration := 5 * time.Millisecond
+	durationLimit := 2 * sleepDuration
 	timeout := 2 * durationLimit
 	total := 0
 	doSum := func(params []interface{}) error {
@@ -57,11 +58,10 @@ func TestFlushSuccess(t *testing.T) {
 	}
 
 	b := New(timeout, doSum)
-	b.callbackWorkAdded = func(count int) {
-		if count == 10 {
-			b.Flush()
-		}
-	}
+	go func() {
+		time.Sleep(sleepDuration)
+		b.Flush()
+	}()
 
 	wg := &sync.WaitGroup{}
 	expectedTotal := 0
