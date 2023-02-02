@@ -88,6 +88,11 @@ func TestShutdownSuccess(t *testing.T) {
 	}
 }
 
+func TestShutdownEmpty(t *testing.T) {
+	b := New(10*time.Millisecond, returnsSuccess)
+	b.Shutdown(true)
+}
+
 func TestBatcherError(t *testing.T) {
 	b := New(10*time.Millisecond, returnsError)
 

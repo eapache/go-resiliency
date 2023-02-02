@@ -111,8 +111,10 @@ func (b *Batcher) Shutdown(wait bool) {
 	b.flush()
 
 	if wait {
-		// wait done channel
-		<-b.done
+		if b.done != nil {
+			// wait done channel
+			<-b.done
+		}
 	}
 }
 
