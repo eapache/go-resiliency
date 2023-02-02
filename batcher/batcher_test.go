@@ -41,6 +41,53 @@ func TestBatcherSuccess(t *testing.T) {
 	}
 }
 
+func TestShutdownSuccess(t *testing.T) {
+	sleepDuration := 5 * time.Millisecond
+	durationLimit := 2 * sleepDuration
+	timeout := 2 * durationLimit
+	total := 0
+	doSum := func(params []interface{}) error {
+		for _, param := range params {
+			intValue, ok := param.(int)
+			if !ok {
+				t.Error("expected type int")
+			}
+			total += intValue
+		}
+		return nil
+	}
+
+	b := New(timeout, doSum)
+	go func() {
+		time.Sleep(sleepDuration)
+		b.Shutdown(true)
+	}()
+
+	wg := &sync.WaitGroup{}
+	expectedTotal := 0
+	start := time.Now()
+	for i := 0; i < 10; i++ {
+		expectedTotal += i
+		wg.Add(1)
+		go func(i int) {
+			if err := b.Run(i); err != nil {
+				t.Error(err)
+			}
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+
+	duration := time.Since(start)
+	if duration >= durationLimit {
+		t.Errorf("expected duration[%v] < durationLimit[%v]", duration, durationLimit)
+	}
+
+	if total != expectedTotal {
+		t.Errorf("expected processed count[%v] < actual[%v]", expectedTotal, total)
+	}
+}
+
 func TestBatcherError(t *testing.T) {
 	b := New(10*time.Millisecond, returnsError)
 
