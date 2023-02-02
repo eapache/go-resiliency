@@ -97,7 +97,6 @@ func (b *Batcher) batch() {
 		future <- ret
 		close(future)
 	}
-	b.done <- true
 	close(b.done)
 }
 
