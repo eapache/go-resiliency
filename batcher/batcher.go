@@ -19,6 +19,7 @@ type Batcher struct {
 	lock   sync.Mutex
 	submit chan *work
 	doWork func([]interface{}) error
+	done   chan bool
 }
 
 // New constructs a new batcher that will batch all calls to Run that occur within
@@ -70,6 +71,7 @@ func (b *Batcher) submitWork(w *work) {
 	defer b.lock.Unlock()
 
 	if b.submit == nil {
+		b.done = make(chan bool, 1)
 		b.submit = make(chan *work, 4)
 		go b.batch()
 	}
@@ -95,17 +97,28 @@ func (b *Batcher) batch() {
 		future <- ret
 		close(future)
 	}
+	b.done <- true
 }
 
 func (b *Batcher) timer() {
 	time.Sleep(b.timeout)
 
-	b.Flush()
+	b.flush()
+}
+
+// Shutdown flush the changes and wait to be saved
+func (b *Batcher) Shutdown(wait bool) {
+	b.flush()
+
+	if wait {
+		// wait done channel
+		<-b.done
+	}
 }
 
 // Flush saves the changes before the timer expires.
 // It is useful to flush the changes when you shutdown your application
-func (b *Batcher) Flush() {
+func (b *Batcher) flush() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 

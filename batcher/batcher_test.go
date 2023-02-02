@@ -41,7 +41,7 @@ func TestBatcherSuccess(t *testing.T) {
 	}
 }
 
-func TestFlushSuccess(t *testing.T) {
+func TestShutdownSuccess(t *testing.T) {
 	sleepDuration := 5 * time.Millisecond
 	durationLimit := 2 * sleepDuration
 	timeout := 2 * durationLimit
@@ -60,7 +60,7 @@ func TestFlushSuccess(t *testing.T) {
 	b := New(timeout, doSum)
 	go func() {
 		time.Sleep(sleepDuration)
-		b.Flush()
+		b.Shutdown(true)
 	}()
 
 	wg := &sync.WaitGroup{}
