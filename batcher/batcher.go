@@ -16,9 +16,11 @@ type Batcher struct {
 	timeout   time.Duration
 	prefilter func(interface{}) error
 
-	lock   sync.Mutex
-	submit chan *work
-	doWork func([]interface{}) error
+	lock              sync.Mutex
+	submit            chan *work
+	doWork            func([]interface{}) error
+	workCount         int
+	callbackWorkAdded func(count int)
 }
 
 // New constructs a new batcher that will batch all calls to Run that occur within
@@ -75,6 +77,11 @@ func (b *Batcher) submitWork(w *work) {
 	}
 
 	b.submit <- w
+	b.workCount++
+	if b.callbackWorkAdded != nil {
+		go b.callbackWorkAdded(b.workCount)
+	}
+
 }
 
 func (b *Batcher) batch() {
@@ -100,9 +107,20 @@ func (b *Batcher) batch() {
 func (b *Batcher) timer() {
 	time.Sleep(b.timeout)
 
+	b.Flush()
+}
+
+// Flush saves the changes before the timer expires.
+// It is useful to flush the changes when you shutdown your application
+func (b *Batcher) Flush() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
+	if b.submit == nil {
+		return
+	}
+
 	close(b.submit)
 	b.submit = nil
+	b.workCount = 0
 }
