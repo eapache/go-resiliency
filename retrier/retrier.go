@@ -60,8 +60,8 @@ func (r *Retrier) RunCtx(ctx context.Context, work func(ctx context.Context) err
 				return ret
 			}
 
-			timeout := time.After(r.calcSleep(retries))
-			if err := r.sleep(ctx, timeout); err != nil {
+			timer := time.NewTimer(r.calcSleep(retries))
+			if err := r.sleep(ctx, timer); err != nil {
 				return err
 			}
 
@@ -70,11 +70,15 @@ func (r *Retrier) RunCtx(ctx context.Context, work func(ctx context.Context) err
 	}
 }
 
-func (r *Retrier) sleep(ctx context.Context, t <-chan time.Time) error {
+func (r *Retrier) sleep(ctx context.Context, timer *time.Timer) error {
 	select {
-	case <-t:
+	case <-timer.C:
 		return nil
 	case <-ctx.Done():
+		if !timer.Stop() {
+			<-timer.C
+		}
+
 		return ctx.Err()
 	}
 }
