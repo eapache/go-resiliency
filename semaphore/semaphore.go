@@ -29,10 +29,15 @@ func New(tickets int, timeout time.Duration) *Semaphore {
 // If it cannot after "timeout" amount of time, it returns ErrNoTickets. It is
 // safe to call Acquire concurrently on a single Semaphore.
 func (s *Semaphore) Acquire() error {
+	timer := time.NewTimer(s.timeout)
 	select {
 	case s.sem <- struct{}{}:
+		if !timer.Stop() {
+			<-timer.C
+		}
+
 		return nil
-	case <-time.After(s.timeout):
+	case <-timer.C:
 		return ErrNoTickets
 	}
 }
