@@ -5,6 +5,13 @@ bumping the major version of this package, which violates the official Golang
 packaging convention around breaking changes. Typically the versions being
 dropped are multiple years old and long unsupported.*
 
+#### Version 1.4.0 (2023-08-14)
+
+ - Adds `Batcher.Shutdown()` to flush any pending work without waiting for the
+   timer, e.g. on application shutdown (thanks to Ivan Stankov).
+ - Fix possible memory leaks of Timer objects in Deadline, Retrier, and
+   Semaphore (thanks to Dmytro Nozdrin).
+
 #### Version 1.3.0 (2022-06-27)
 
  - Increased minimum Golang version to 1.13.
