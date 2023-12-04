@@ -20,9 +20,9 @@ func genWork(returns []error) func() error {
 	}
 }
 
-func genWorkWithCtx() func(ctx context.Context) error {
+func genWorkWithCtx() func(ctx context.Context, retries int) error {
 	i = 0
-	return func(ctx context.Context) error {
+	return func(ctx context.Context, retries int) error {
 		select {
 		case <-ctx.Done():
 			return errFoo
@@ -30,6 +30,15 @@ func genWorkWithCtx() func(ctx context.Context) error {
 			i++
 		}
 		return nil
+	}
+}
+
+func genWorkWithCtxError(returns []error) func(ctx context.Context, retries int) error {
+	return func(ctx context.Context, retries int) error {
+		if retries > len(returns) {
+			return nil
+		}
+		return returns[retries-1]
 	}
 }
 
@@ -82,6 +91,38 @@ func TestRetrierCtx(t *testing.T) {
 	}
 	if i != 0 {
 		t.Error("run wrong number of times")
+	}
+}
+
+func TestRetrierCtxError(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
+	errExpected := []error{errFoo, errFoo, errBar, errBaz}
+
+	err := r.RunCtx(ctx, func(ctx context.Context, retries int) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		return errExpected[retries]
+	})
+	if err != errBar {
+		t.Error(err)
+	}
+}
+
+func TestRetrierCtxWithInfinite(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithInfiniteRetry()
+	errExpected := []error{errFoo, errFoo, errFoo, errBar, errBaz}
+
+	err := r.RunCtx(ctx, func(ctx context.Context, retries int) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		return errExpected[retries]
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
 
