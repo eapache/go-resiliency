@@ -20,9 +20,9 @@ func genWork(returns []error) func() error {
 	}
 }
 
-func genWorkWithCtx() func(ctx context.Context, retries int) error {
+func genWorkWithCtx() func(ctx context.Context) error {
 	i = 0
-	return func(ctx context.Context, retries int) error {
+	return func(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return errFoo
@@ -30,15 +30,6 @@ func genWorkWithCtx() func(ctx context.Context, retries int) error {
 			i++
 		}
 		return nil
-	}
-}
-
-func genWorkWithCtxError(returns []error) func(ctx context.Context, retries int) error {
-	return func(ctx context.Context, retries int) error {
-		if retries > len(returns) {
-			return nil
-		}
-		return returns[retries-1]
 	}
 }
 
@@ -98,8 +89,26 @@ func TestRetrierCtxError(t *testing.T) {
 	ctx := context.Background()
 	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
 	errExpected := []error{errFoo, errFoo, errBar, errBaz}
+	retries := 0
+	err := r.RunCtx(ctx, func(ctx context.Context) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		err := errExpected[retries]
+		retries++
+		return err
+	})
+	if err != errBar {
+		t.Error(err)
+	}
+}
 
-	err := r.RunCtx(ctx, func(ctx context.Context, retries int) error {
+func TestRetrierRunFnError(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
+	errExpected := []error{errFoo, errFoo, errBar, errBaz}
+
+	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
 		if retries >= len(errExpected) {
 			return nil
 		}
@@ -114,8 +123,26 @@ func TestRetrierCtxWithInfinite(t *testing.T) {
 	ctx := context.Background()
 	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithInfiniteRetry()
 	errExpected := []error{errFoo, errFoo, errFoo, errBar, errBaz}
+	retries := 0
+	err := r.RunCtx(ctx, func(ctx context.Context) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		err := errExpected[retries]
+		retries++
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
 
-	err := r.RunCtx(ctx, func(ctx context.Context, retries int) error {
+func TestRetrierRunFnWithInfinite(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithInfiniteRetry()
+	errExpected := []error{errFoo, errFoo, errFoo, errBar, errBaz}
+
+	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
 		if retries >= len(errExpected) {
 			return nil
 		}

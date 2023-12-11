@@ -43,7 +43,7 @@ func (r *Retrier) WithInfiniteRetry() *Retrier {
 
 // Run executes the given work function by executing RunCtx without context.Context.
 func (r *Retrier) Run(work func() error) error {
-	return r.RunCtx(context.Background(), func(ctx context.Context, retries int) error {
+	return r.RunFn(context.Background(), func(c context.Context, r int) error {
 		// never use ctx
 		return work()
 	})
@@ -54,7 +54,19 @@ func (r *Retrier) Run(work func() error) error {
 // returned to the caller. If the result is Retry, then Run sleeps according to the its backoff policy
 // before retrying. If the total number of retries is exceeded then the return value of the work function
 // is returned to the caller regardless.
-func (r *Retrier) RunCtx(ctx context.Context, work func(ctx context.Context, retries int) error) error {
+func (r *Retrier) RunCtx(ctx context.Context, work func(ctx context.Context) error) error {
+	return r.RunFn(ctx, func(c context.Context, r int) error {
+		return work(c)
+	})
+}
+
+// RunFn executes the given work function, then classifies its return value based on the classifier used
+// to construct the Retrier. If the result is Succeed or Fail, the return value of the work function is
+// returned to the caller. If the result is Retry, then Run sleeps according to the backoff policy
+// before retrying. If the total number of retries is exceeded then the return value of the work function
+// is returned to the caller regardless. The work function takes 2 args, the context and
+// the number of attempted retries.
+func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retries int) error) error {
 	retries := 0
 	for {
 		ret := work(ctx, retries)
