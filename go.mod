@@ -1,3 +1,3 @@
-module github.com/maximebeckman/go-resiliency
+module github.com/eapache/go-resiliency
 
 go 1.13
