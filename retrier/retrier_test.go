@@ -85,6 +85,74 @@ func TestRetrierCtx(t *testing.T) {
 	}
 }
 
+func TestRetrierCtxError(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
+	errExpected := []error{errFoo, errFoo, errBar, errBaz}
+	retries := 0
+	err := r.RunCtx(ctx, func(ctx context.Context) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		err := errExpected[retries]
+		retries++
+		return err
+	})
+	if err != errBar {
+		t.Error(err)
+	}
+}
+
+func TestRetrierRunFnError(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
+	errExpected := []error{errFoo, errFoo, errBar, errBaz}
+
+	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		return errExpected[retries]
+	})
+	if err != errBar {
+		t.Error(err)
+	}
+}
+
+func TestRetrierCtxWithInfinite(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithInfiniteRetry()
+	errExpected := []error{errFoo, errFoo, errFoo, errBar, errBaz}
+	retries := 0
+	err := r.RunCtx(ctx, func(ctx context.Context) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		err := errExpected[retries]
+		retries++
+		return err
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRetrierRunFnWithInfinite(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithInfiniteRetry()
+	errExpected := []error{errFoo, errFoo, errFoo, errBar, errBaz}
+
+	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		return errExpected[retries]
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestRetrierNone(t *testing.T) {
 	r := New(nil, nil)
 
