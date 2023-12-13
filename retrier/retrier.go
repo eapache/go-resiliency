@@ -35,7 +35,9 @@ func New(backoff []time.Duration, class Classifier) *Retrier {
 	}
 }
 
-// WithInfiniteRetry set the retrier to loop infinitely on the last backoff duration
+// WithInfiniteRetry set the retrier to loop infinitely on the last backoff duration. Using this option,
+// the program will not exit until the retried function has been executed successfully.
+// WARNING : This may run indefinitely.
 func (r *Retrier) WithInfiniteRetry() *Retrier {
 	r.infiniteRetry = true
 	return r
