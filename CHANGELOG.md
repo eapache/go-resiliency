@@ -5,6 +5,11 @@ bumping the major version of this package, which violates the official Golang
 packaging convention around breaking changes. Typically the versions being
 dropped are multiple years old and long unsupported.*
 
+#### Version 1.5.0 (2023-12-14)
+
+ - Adds `Retrier.WithInfiniteRetry()` and `Retrier.RunFn()` to handle more
+   complex cases (thanks to Maxime Beckman).
+
 #### Version 1.4.0 (2023-08-14)
 
  - Adds `Batcher.Shutdown()` to flush any pending work without waiting for the
