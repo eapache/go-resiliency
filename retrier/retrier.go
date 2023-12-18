@@ -3,6 +3,7 @@ package retrier
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 // a certain number of times with an optional back-off between each retry.
 type Retrier struct {
 	backoff       []time.Duration
+	timeout       time.Duration
 	infiniteRetry bool
 	class         Classifier
 	jitter        float64
@@ -43,6 +45,14 @@ func (r *Retrier) WithInfiniteRetry() *Retrier {
 	return r
 }
 
+// WithTimeout configures the retrier to apply a global timeout that covers the entire duration of
+// successive work() calls. This option differs from the backoff setting because the backoffs only
+// apply between retries.
+func (r *Retrier) WithTimeout(t time.Duration) *Retrier {
+	r.timeout = t
+	return r
+}
+
 // Run executes the given work function by executing RunCtx without context.Context.
 func (r *Retrier) Run(work func() error) error {
 	return r.RunFn(context.Background(), func(c context.Context, r int) error {
@@ -70,6 +80,13 @@ func (r *Retrier) RunCtx(ctx context.Context, work func(ctx context.Context) err
 // the number of attempted retries.
 func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retries int) error) error {
 	retries := 0
+
+	if r.timeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, r.timeout)
+		defer cancel()
+	}
+
 	for {
 		ret := work(ctx, retries)
 
@@ -83,7 +100,13 @@ func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retr
 
 			timer := time.NewTimer(r.calcSleep(retries))
 			if err := r.sleep(ctx, timer); err != nil {
-				return err
+				switch err {
+				case context.DeadlineExceeded:
+					// Timeout hit.
+					return errors.Join(err, ret)
+				default:
+					return err
+				}
 			}
 
 			retries++

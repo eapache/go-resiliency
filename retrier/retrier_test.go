@@ -153,6 +153,46 @@ func TestRetrierRunFnWithInfinite(t *testing.T) {
 	}
 }
 
+func TestRetrierCtxWithTimeout(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithTimeout(time.Millisecond)
+	errExpected := []error{errFoo, errFoo}
+	retries := 0
+	err := r.RunCtx(ctx, func(ctx context.Context) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		err := errExpected[retries]
+		retries++
+		return err
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("expected %v, got %v", context.DeadlineExceeded, err)
+	}
+	if !errors.Is(err, errFoo) {
+		t.Errorf("expected %v, got %v", errFoo, err)
+	}
+}
+
+func TestRetrierRunFnWithTimeout(t *testing.T) {
+	ctx := context.Background()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithTimeout(time.Millisecond)
+	errExpected := []error{errFoo, errFoo}
+
+	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		return errExpected[retries]
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("expected %v, got %v", context.DeadlineExceeded, err)
+	}
+	if !errors.Is(err, errFoo) {
+		t.Errorf("expected %v, got %v", errFoo, err)
+	}
+}
+
 func TestRetrierNone(t *testing.T) {
 	r := New(nil, nil)
 
