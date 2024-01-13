@@ -21,20 +21,20 @@ func returnsSuccess() error {
 }
 
 func TestBreakerErrorExpiry(t *testing.T) {
-	breaker := New(2, 1, 1*time.Second)
+	breaker := New(2, 1, 10*time.Millisecond)
 
 	for i := 0; i < 3; i++ {
 		if err := breaker.Run(returnsError); err != errSomeError {
 			t.Error(err)
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	for i := 0; i < 3; i++ {
 		if err := breaker.Go(returnsError); err != nil {
 			t.Error(err)
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestBreakerPanicsCountAsErrors(t *testing.T) {
 }
 
 func TestBreakerStateTransitions(t *testing.T) {
-	breaker := New(3, 2, 1*time.Second)
+	breaker := New(3, 2, 10*time.Millisecond)
 
 	// three errors opens the breaker
 	for i := 0; i < 3; i++ {
@@ -83,7 +83,7 @@ func TestBreakerStateTransitions(t *testing.T) {
 	}
 
 	// wait for it to half-close
-	time.Sleep(2 * time.Second)
+	time.Sleep(20 * time.Millisecond)
 	// one success works, but is not enough to fully close
 	if err := breaker.Run(returnsSuccess); err != nil {
 		t.Error(err)
@@ -98,7 +98,7 @@ func TestBreakerStateTransitions(t *testing.T) {
 	}
 
 	// wait for it to half-close
-	time.Sleep(2 * time.Second)
+	time.Sleep(20 * time.Millisecond)
 	// two successes is enough to close it for good
 	for i := 0; i < 2; i++ {
 		if err := breaker.Run(returnsSuccess); err != nil {
@@ -116,7 +116,7 @@ func TestBreakerStateTransitions(t *testing.T) {
 }
 
 func TestBreakerAsyncStateTransitions(t *testing.T) {
-	breaker := New(3, 2, 1*time.Second)
+	breaker := New(3, 2, 10*time.Millisecond)
 
 	// three errors opens the breaker
 	for i := 0; i < 3; i++ {
@@ -136,7 +136,7 @@ func TestBreakerAsyncStateTransitions(t *testing.T) {
 	}
 
 	// wait for it to half-close
-	time.Sleep(2 * time.Second)
+	time.Sleep(20 * time.Millisecond)
 	// one success works, but is not enough to fully close
 	if err := breaker.Go(returnsSuccess); err != nil {
 		t.Error(err)
@@ -153,7 +153,7 @@ func TestBreakerAsyncStateTransitions(t *testing.T) {
 	}
 
 	// wait for it to half-close
-	time.Sleep(2 * time.Second)
+	time.Sleep(20 * time.Millisecond)
 	// two successes is enough to close it for good
 	for i := 0; i < 2; i++ {
 		if err := breaker.Go(returnsSuccess); err != nil {
