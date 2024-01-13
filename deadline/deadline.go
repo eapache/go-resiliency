@@ -42,10 +42,7 @@ func (d *Deadline) Run(work func(<-chan struct{}) error) error {
 	timer := time.NewTimer(d.timeout)
 	select {
 	case ret := <-result:
-		if !timer.Stop() {
-			<-timer.C
-		}
-
+		timer.Stop()
 		return ret
 	case <-timer.C:
 		close(stopper)
