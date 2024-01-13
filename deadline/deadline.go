@@ -24,19 +24,15 @@ func New(timeout time.Duration) *Deadline {
 // Run runs the given function, passing it a stopper channel. If the deadline passes before
 // the function finishes executing, Run returns ErrTimeOut to the caller and closes the stopper
 // channel so that the work function can attempt to exit gracefully. It does not (and cannot)
-// simply kill the running function, so if it doesn't respect the stopper channel then it may
-// keep running after the deadline passes. If the function finishes before the deadline, then
-// the return value of the function is returned from Run.
+// kill the running function's goroutine, so if the function doesn't respect the stopper channel,
+// then it may keep running after the deadline passes. If the function finishes before the
+// deadline, then the return value of the function is returned from Run.
 func (d *Deadline) Run(work func(<-chan struct{}) error) error {
-	result := make(chan error)
+	result := make(chan error, 1)
 	stopper := make(chan struct{})
 
 	go func() {
-		value := work(stopper)
-		select {
-		case result <- value:
-		case <-stopper:
-		}
+		result <- work(stopper)
 	}()
 
 	timer := time.NewTimer(d.timeout)
