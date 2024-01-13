@@ -32,10 +32,7 @@ func (s *Semaphore) Acquire() error {
 	timer := time.NewTimer(s.timeout)
 	select {
 	case s.sem <- struct{}{}:
-		if !timer.Stop() {
-			<-timer.C
-		}
-
+		timer.Stop()
 		return nil
 	case <-timer.C:
 		return ErrNoTickets

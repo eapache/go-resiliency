@@ -96,10 +96,7 @@ func (r *Retrier) sleep(ctx context.Context, timer *time.Timer) error {
 	case <-timer.C:
 		return nil
 	case <-ctx.Done():
-		if !timer.Stop() {
-			<-timer.C
-		}
-
+		timer.Stop()
 		return ctx.Err()
 	}
 }
