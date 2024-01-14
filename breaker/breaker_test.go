@@ -22,12 +22,18 @@ func returnsSuccess() error {
 
 func TestBreakerErrorExpiry(t *testing.T) {
 	breaker := New(2, 1, 10*time.Millisecond)
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
+	}
 
 	for i := 0; i < 3; i++ {
 		if err := breaker.Run(returnsError); err != errSomeError {
 			t.Error(err)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
 	}
 
 	for i := 0; i < 3; i++ {
@@ -36,10 +42,16 @@ func TestBreakerErrorExpiry(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
+	}
 }
 
 func TestBreakerPanicsCountAsErrors(t *testing.T) {
 	breaker := New(3, 2, 1*time.Second)
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
+	}
 
 	// three errors opens the breaker
 	for i := 0; i < 3; i++ {
@@ -58,6 +70,9 @@ func TestBreakerPanicsCountAsErrors(t *testing.T) {
 	}
 
 	// breaker is open
+	if breaker.GetState() != Open {
+		t.Error("incorrect state")
+	}
 	for i := 0; i < 5; i++ {
 		if err := breaker.Run(returnsError); err != ErrBreakerOpen {
 			t.Error(err)
@@ -67,6 +82,9 @@ func TestBreakerPanicsCountAsErrors(t *testing.T) {
 
 func TestBreakerStateTransitions(t *testing.T) {
 	breaker := New(3, 2, 10*time.Millisecond)
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
+	}
 
 	// three errors opens the breaker
 	for i := 0; i < 3; i++ {
@@ -76,6 +94,9 @@ func TestBreakerStateTransitions(t *testing.T) {
 	}
 
 	// breaker is open
+	if breaker.GetState() != Open {
+		t.Error("incorrect state")
+	}
 	for i := 0; i < 5; i++ {
 		if err := breaker.Run(returnsError); err != ErrBreakerOpen {
 			t.Error(err)
@@ -84,6 +105,9 @@ func TestBreakerStateTransitions(t *testing.T) {
 
 	// wait for it to half-close
 	time.Sleep(20 * time.Millisecond)
+	if breaker.GetState() != HalfOpen {
+		t.Error("incorrect state")
+	}
 	// one success works, but is not enough to fully close
 	if err := breaker.Run(returnsSuccess); err != nil {
 		t.Error(err)
@@ -93,23 +117,35 @@ func TestBreakerStateTransitions(t *testing.T) {
 		t.Error(err)
 	}
 	// breaker is open
+	if breaker.GetState() != Open {
+		t.Error("incorrect state")
+	}
 	if err := breaker.Run(returnsError); err != ErrBreakerOpen {
 		t.Error(err)
 	}
 
 	// wait for it to half-close
 	time.Sleep(20 * time.Millisecond)
+	if breaker.GetState() != HalfOpen {
+		t.Error("incorrect state")
+	}
 	// two successes is enough to close it for good
 	for i := 0; i < 2; i++ {
 		if err := breaker.Run(returnsSuccess); err != nil {
 			t.Error(err)
 		}
 	}
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
+	}
 	// error works
 	if err := breaker.Run(returnsError); err != errSomeError {
 		t.Error(err)
 	}
 	// breaker is still closed
+	if breaker.GetState() != Closed {
+		t.Error("incorrect state")
+	}
 	if err := breaker.Run(returnsSuccess); err != nil {
 		t.Error(err)
 	}
