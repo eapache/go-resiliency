@@ -5,6 +5,17 @@ bumping the major version of this package, which violates the official Golang
 packaging convention around breaking changes. Typically the versions being
 dropped are multiple years old and long unsupported.*
 
+#### Version 1.6.0 (2024-02-19)
+
+ - Adds `Breaker.GetState()` to check the breaker state directly (e.g. for
+   monitoring metrics).
+ - Fix a race condition in the Batcher that could have lead to a panic if
+   multiple batches ended up executing at once (thanks to Tiago Peczenyj for the
+   discovery and very clear bug report).
+ - Fix `Batcher.Shutdown()` to behave correctly when multiple batches end up
+   executing at once.
+ - A variety of small refactors, simplifications, and test suite improvements.
+
 #### Version 1.5.0 (2023-12-14)
 
  - Adds `Retrier.WithInfiniteRetry()` and `Retrier.RunFn()` to handle more
