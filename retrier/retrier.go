@@ -44,7 +44,7 @@ func (r *Retrier) WithInfiniteRetry() *Retrier {
 	return r
 }
 
-// WithSurfaceWorkErrors configures the retrier to always return the last non-nil error received from work()
+// WithSurfaceWorkErrors configures the retrier to always return the last error received from work function
 // even if a context timeout/deadline is hit.
 func (r *Retrier) WithSurfaceWorkErrors() *Retrier {
 	r.surfaceWorkErrors = true
@@ -91,7 +91,7 @@ func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retr
 
 			timer := time.NewTimer(r.calcSleep(retries))
 			if err := r.sleep(ctx, timer); err != nil {
-				if r.surfaceWorkErrors && ret != nil {
+				if r.surfaceWorkErrors {
 					return ret
 				}
 				return err
