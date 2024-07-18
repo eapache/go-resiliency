@@ -153,40 +153,48 @@ func TestRetrierRunFnWithInfinite(t *testing.T) {
 	}
 }
 
-func TestRetrierCtxSurfaceWorkErrors(t *testing.T) {
-	// Will timeout before getting to errBar.
-	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Millisecond)
-	defer cancel()
-	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithSurfaceWorkErrors()
-	errExpected := []error{errFoo, errFoo, errBar, errBaz}
-	retries := 0
-	err := r.RunCtx(ctx, func(ctx context.Context) error {
-		if retries >= len(errExpected) {
-			return nil
-		}
-		err := errExpected[retries]
-		retries++
-		return err
-	})
-	if err != errFoo {
-		t.Error(err)
-	}
-}
-
 func TestRetrierRunFnWithSurfaceWorkErrors(t *testing.T) {
-	// Will timeout before getting to errBar.
-	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r := New([]time.Duration{0, 10 * time.Millisecond}, nil).WithSurfaceWorkErrors()
-	errExpected := []error{errFoo, errFoo, errFoo, errBar, errBaz}
+	errExpected := []error{errFoo, errBar, errBaz}
 
 	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
 		if retries >= len(errExpected) {
 			return nil
 		}
-		return errExpected[retries]
+		if retries == 1 {
+			// Context canceled inside second call to work function.
+			cancel()
+		}
+		err := errExpected[retries]
+		retries++
+		return err
 	})
-	if err != errFoo {
+	if err != errBar {
+		t.Error(err)
+	}
+}
+
+func TestRetrierRunFnWithoutSurfaceWorkErrors(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
+	errExpected := []error{errFoo, errBar, errBaz}
+
+	err := r.RunFn(ctx, func(ctx context.Context, retries int) error {
+		if retries >= len(errExpected) {
+			return nil
+		}
+		if retries == 1 {
+			// Context canceled inside second call to work function.
+			cancel()
+		}
+		err := errExpected[retries]
+		retries++
+		return err
+	})
+	if err != context.Canceled {
 		t.Error(err)
 	}
 }
