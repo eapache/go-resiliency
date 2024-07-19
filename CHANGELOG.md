@@ -5,7 +5,7 @@ bumping the major version of this package, which violates the official Golang
 packaging convention around breaking changes. Typically the versions being
 dropped are multiple years old and long unsupported.*
 
-#### main (unreleased)
+#### Version 1.7.0 (2024-07-19)
 
  - Adds `Retrier.WithSurfaceWorkErrors()` to ask the Retrier to always return
    the work function's error even if a context deadline is hit (thanks to
