@@ -5,6 +5,12 @@ bumping the major version of this package, which violates the official Golang
 packaging convention around breaking changes. Typically the versions being
 dropped are multiple years old and long unsupported.*
 
+#### main (unreleased)
+
+ - Adds `Retrier.WithSurfaceWorkErrors()` to ask the Retrier to always return
+   the work function's error even if a context deadline is hit (thanks to
+   Elizabeth Cox).
+
 #### Version 1.6.0 (2024-02-19)
 
  - Adds `Breaker.GetState()` to check the breaker state directly (e.g. for
