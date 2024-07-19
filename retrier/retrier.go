@@ -11,12 +11,13 @@ import (
 // Retrier implements the "retriable" resiliency pattern, abstracting out the process of retrying a failed action
 // a certain number of times with an optional back-off between each retry.
 type Retrier struct {
-	backoff       []time.Duration
-	infiniteRetry bool
-	class         Classifier
-	jitter        float64
-	rand          *rand.Rand
-	randMu        sync.Mutex
+	backoff           []time.Duration
+	infiniteRetry     bool
+	surfaceWorkErrors bool
+	class             Classifier
+	jitter            float64
+	rand              *rand.Rand
+	randMu            sync.Mutex
 }
 
 // New constructs a Retrier with the given backoff pattern and classifier. The length of the backoff pattern
@@ -40,6 +41,13 @@ func New(backoff []time.Duration, class Classifier) *Retrier {
 // WARNING : This may run indefinitely.
 func (r *Retrier) WithInfiniteRetry() *Retrier {
 	r.infiniteRetry = true
+	return r
+}
+
+// WithSurfaceWorkErrors configures the retrier to always return the last error received from work function
+// even if a context timeout/deadline is hit.
+func (r *Retrier) WithSurfaceWorkErrors() *Retrier {
+	r.surfaceWorkErrors = true
 	return r
 }
 
@@ -83,6 +91,9 @@ func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retr
 
 			timer := time.NewTimer(r.calcSleep(retries))
 			if err := r.sleep(ctx, timer); err != nil {
+				if r.surfaceWorkErrors {
+					return ret
+				}
 				return err
 			}
 
