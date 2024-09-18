@@ -7,6 +7,8 @@ deadline
 
 The deadline/timeout resiliency pattern for golang.
 
+Note that the golang standard library now offers [`context.withDeadline`](https://pkg.go.dev/context#example-WithDeadline) with very similar functionality. This `deadline` package will probably be deprecated and removed in some future version.
+
 Creating a deadline takes one parameter: how long to wait.
 
 ```go
