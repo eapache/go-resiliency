@@ -153,6 +153,24 @@ func TestRetrierRunFnWithInfinite(t *testing.T) {
 	}
 }
 
+func TestRetrierWithDynamicBackoff(t *testing.T) {
+	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
+	st := time.Now()
+
+	err := r.Run(genWork([]error{ErrWithBackoff(errFoo, 500*time.Millisecond)}))
+	if err != nil {
+		t.Error(err)
+	}
+	if i != 2 {
+		t.Error("run wrong number of times")
+	}
+
+	if time.Since(st) < 500*time.Millisecond {
+		t.Error("not wait dynamic backoff")
+	}
+
+}
+
 func TestRetrierRunFnWithSurfaceWorkErrors(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
