@@ -3,6 +3,7 @@ package retrier
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -89,7 +90,15 @@ func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retr
 				return ret
 			}
 
-			timer := time.NewTimer(r.calcSleep(retries))
+			var err *errWithBackoff
+			var backoff time.Duration
+			if errors.As(ret, &err) {
+				backoff = err.backoff
+			} else {
+				backoff = r.calcSleep(retries)
+			}
+
+			timer := time.NewTimer(backoff)
 			if err := r.sleep(ctx, timer); err != nil {
 				if r.surfaceWorkErrors {
 					return ret
