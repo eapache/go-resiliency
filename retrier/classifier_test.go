@@ -34,7 +34,7 @@ type wrappedErr struct {
 }
 
 func (w wrappedErr) Error() string {
-	return "there's an error happening during X: " + w.Error()
+	return "there's an error happening during X: " + w.error.Error()
 }
 
 func (w wrappedErr) Unwrap() error {
