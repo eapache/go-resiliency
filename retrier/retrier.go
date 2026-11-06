@@ -77,6 +77,9 @@ func (r *Retrier) RunCtx(ctx context.Context, work func(ctx context.Context) err
 // before retrying. If the total number of retries is exceeded then the return value of the work function
 // is returned to the caller regardless. The work function takes 2 args, the context and
 // the number of attempted retries.
+// If the error or an error in its chain implements Backoff() time.Duration, that delay
+// overrides the configured backoff without jitter. Non-positive delays retry immediately.
+// The classifier and retry limit still apply.
 func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retries int) error) error {
 	retries := 0
 	for {
@@ -90,15 +93,7 @@ func (r *Retrier) RunFn(ctx context.Context, work func(ctx context.Context, retr
 				return ret
 			}
 
-			var err *errWithBackoff
-			var backoff time.Duration
-			if errors.As(ret, &err) {
-				backoff = err.backoff
-			} else {
-				backoff = r.calcSleep(retries)
-			}
-
-			timer := time.NewTimer(backoff)
+			timer := time.NewTimer(r.calcSleep(retries, ret))
 			if err := r.sleep(ctx, timer); err != nil {
 				if r.surfaceWorkErrors {
 					return ret
@@ -121,7 +116,12 @@ func (r *Retrier) sleep(ctx context.Context, timer *time.Timer) error {
 	}
 }
 
-func (r *Retrier) calcSleep(i int) time.Duration {
+func (r *Retrier) calcSleep(i int, err error) time.Duration {
+	var backoff interface{ Backoff() time.Duration }
+	if errors.As(err, &backoff) {
+		return backoff.Backoff()
+	}
+
 	if i >= len(r.backoff) {
 		i = len(r.backoff) - 1
 	}
@@ -133,7 +133,8 @@ func (r *Retrier) calcSleep(i int) time.Duration {
 }
 
 // SetJitter sets the amount of jitter on each back-off to a factor between 0.0 and 1.0 (values outside this range
-// are silently ignored). When a retry occurs, the back-off is adjusted by a random amount up to this value.
+// are silently ignored). When a retry occurs, the configured back-off is adjusted by a random amount up to this value.
+// Delays supplied by errors implementing Backoff() time.Duration are used without jitter.
 func (r *Retrier) SetJitter(jit float64) {
 	if jit < 0 || jit > 1 {
 		return

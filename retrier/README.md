@@ -24,3 +24,12 @@ if err != nil {
 	// handle the case where the work failed three times
 }
 ```
+
+A retried error can override the delay by implementing `Backoff() time.Duration`.
+The retrier also looks through wrapped errors. For an ordinary error, use
+`retrier.ErrWithBackoff(err, delay)`; it preserves the original error for
+`errors.Is`, `errors.As`, and the built-in classifiers, and returns nil for nil.
+
+Error-provided delays are used without jitter. Zero or negative delays retry
+immediately. Errors without a backoff use the configured schedule and jitter.
+The classifier and the number of allowed retries still apply.

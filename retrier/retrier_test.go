@@ -3,6 +3,7 @@ package retrier
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -153,22 +154,114 @@ func TestRetrierRunFnWithInfinite(t *testing.T) {
 	}
 }
 
+type backoffError struct {
+	error
+	delay time.Duration
+}
+
+func (e backoffError) Backoff() time.Duration {
+	return e.delay
+}
+
+func TestRetrierCalcSleep(t *testing.T) {
+	custom := backoffError{error: errFoo, delay: 7 * time.Millisecond}
+	tests := []struct {
+		name  string
+		retry int
+		err   error
+		want  time.Duration
+	}{
+		{name: "nil error", want: time.Second},
+		{name: "ordinary error", retry: 1, err: errFoo, want: 2 * time.Second},
+		{name: "last static delay", retry: 3, err: errFoo, want: 2 * time.Second},
+		{name: "helper", err: ErrWithBackoff(errFoo, 10*time.Millisecond), want: 10 * time.Millisecond},
+		{name: "zero override", err: ErrWithBackoff(errFoo, 0)},
+		{name: "negative override", err: ErrWithBackoff(errFoo, -time.Millisecond), want: -time.Millisecond},
+		{name: "custom error", err: custom, want: 7 * time.Millisecond},
+		{name: "wrapped helper", err: fmt.Errorf("work: %w", ErrWithBackoff(errFoo, 10*time.Millisecond)), want: 10 * time.Millisecond},
+		{name: "wrapped custom error", err: fmt.Errorf("work: %w", custom), want: 7 * time.Millisecond},
+		{name: "outer override", err: ErrWithBackoff(custom, 10*time.Millisecond), want: 10 * time.Millisecond},
+		{name: "infinite retry index", retry: 3, err: custom, want: 7 * time.Millisecond},
+		{name: "ordinary error after override", retry: 1, err: errFoo, want: 2 * time.Second},
+	}
+	r := New([]time.Duration{time.Second, 2 * time.Second}, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := r.calcSleep(tt.retry, tt.err); got != tt.want {
+				t.Errorf("calcSleep(%d, %v) = %v, want %v", tt.retry, tt.err, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRetrierDynamicBackoffJitter(t *testing.T) {
+	r := New([]time.Duration{time.Hour}, nil)
+	r.SetJitter(0.5)
+	r.rand.Seed(1)
+	err := ErrWithBackoff(errFoo, 10*time.Millisecond)
+	if got := r.calcSleep(0, err); got != 10*time.Millisecond {
+		t.Errorf("dynamic delay with jitter = %v, want 10ms", got)
+	}
+}
+
 func TestRetrierWithDynamicBackoff(t *testing.T) {
-	r := New([]time.Duration{0, 10 * time.Millisecond}, nil)
-	st := time.Now()
-
-	err := r.Run(genWork([]error{ErrWithBackoff(errFoo, 500*time.Millisecond)}))
-	if err != nil {
-		t.Error(err)
+	tests := []struct {
+		name      string
+		class     Classifier
+		backoff   []time.Duration
+		wantCalls int
+	}{
+		{name: "default", backoff: []time.Duration{0, 0}, wantCalls: 3},
+		{name: "whitelist", class: WhitelistClassifier{errFoo}, backoff: []time.Duration{0, 0}, wantCalls: 3},
+		{name: "blacklist", class: BlacklistClassifier{errFoo}, backoff: []time.Duration{0, 0}, wantCalls: 1},
+		{name: "no retries", wantCalls: 1},
 	}
-	if i != 2 {
-		t.Error("run wrong number of times")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := New(tt.backoff, tt.class)
+			workErr := ErrWithBackoff(errFoo, 0)
+			calls := 0
+			err := r.Run(func() error {
+				calls++
+				return workErr
+			})
+			if err != workErr {
+				t.Errorf("Run() = %v, want original work error %v", err, workErr)
+			}
+			if calls != tt.wantCalls {
+				t.Errorf("work calls = %d, want %d", calls, tt.wantCalls)
+			}
+		})
 	}
+}
 
-	if time.Since(st) < 500*time.Millisecond {
-		t.Error("not wait dynamic backoff")
+func TestRetrierDynamicBackoffCancellation(t *testing.T) {
+	for _, surfaceWorkErrors := range []bool{false, true} {
+		t.Run(fmt.Sprintf("surfaceWorkErrors=%t", surfaceWorkErrors), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			r := New([]time.Duration{0}, nil)
+			workErr := ErrWithBackoff(errFoo, time.Hour)
+			want := error(context.Canceled)
+			if surfaceWorkErrors {
+				r.WithSurfaceWorkErrors()
+				want = workErr
+			}
+
+			calls := 0
+			err := r.RunCtx(ctx, func(context.Context) error {
+				calls++
+				cancel()
+				return workErr
+			})
+			if err != want {
+				t.Errorf("RunCtx() = %v, want %v", err, want)
+			}
+			if calls != 1 {
+				t.Errorf("work calls = %d, want 1", calls)
+			}
+		})
 	}
-
 }
 
 func TestRetrierRunFnWithSurfaceWorkErrors(t *testing.T) {
@@ -248,30 +341,30 @@ func TestRetrierNone(t *testing.T) {
 func TestRetrierJitter(t *testing.T) {
 	r := New([]time.Duration{0, 10 * time.Millisecond, 4 * time.Hour}, nil)
 
-	if r.calcSleep(0) != 0 {
+	if r.calcSleep(0, nil) != 0 {
 		t.Error("Incorrect sleep calculated")
 	}
-	if r.calcSleep(1) != 10*time.Millisecond {
+	if r.calcSleep(1, nil) != 10*time.Millisecond {
 		t.Error("Incorrect sleep calculated")
 	}
-	if r.calcSleep(2) != 4*time.Hour {
+	if r.calcSleep(2, nil) != 4*time.Hour {
 		t.Error("Incorrect sleep calculated")
 	}
 
 	r.SetJitter(0.25)
 	for i := 0; i < 20; i++ {
-		if r.calcSleep(0) != 0 {
-			t.Error("Incorrect sleep calculated")
+		if got := r.calcSleep(0, nil); got != 0 {
+			t.Errorf("sample %d: calcSleep(0, nil) = %v, want 0", i, got)
 		}
 
-		slp := r.calcSleep(1)
+		slp := r.calcSleep(1, nil)
 		if slp < 7500*time.Microsecond || slp > 12500*time.Microsecond {
-			t.Error("Incorrect sleep calculated")
+			t.Errorf("sample %d: calcSleep(1, nil) = %v, want [7.5ms, 12.5ms]", i, slp)
 		}
 
-		slp = r.calcSleep(2)
+		slp = r.calcSleep(2, nil)
 		if slp < 3*time.Hour || slp > 5*time.Hour {
-			t.Error("Incorrect sleep calculated")
+			t.Errorf("sample %d: calcSleep(2, nil) = %v, want [3h, 5h]", i, slp)
 		}
 	}
 
